@@ -8,7 +8,7 @@
 
 ### 安装
 
-* [点击安装]([douban.alfredworkflow](https://github.com/h3l/douban-workflow/blob/master/douban.alfredworkflow))
+* [点击 douban.alfredworkflow 下载安装](https://github.com/h3l/douban-workflow/raw/master/douban.alfredworkflow)
 
 ### 实际效果如下
 
