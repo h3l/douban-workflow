@@ -14,7 +14,7 @@
 
 ![image-20181121210659883](./assert/image-20181121210659883.png)
 
-### ### 遗憾的地方
+### 遗憾的地方
 
 可以使用书籍或者电影的缩略图代替 emoji 的图像，但是 alfred 的 workflow 默认不支持加载网络资源。so，just forget it。
 
