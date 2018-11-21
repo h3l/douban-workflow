@@ -6,7 +6,9 @@
 
 分别使用 `dbb` (douban book 简称)与 `dbm`(douban movie 简称)
 
+### 安装
 
+* [点击安装]([douban.alfredworkflow](https://github.com/h3l/douban-workflow/blob/master/douban.alfredworkflow))
 
 ### 实际效果如下
 
