@@ -4,11 +4,16 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strings"
+	"sync"
+
+	"io"
+	"net/http"
+
 	"github.com/PuerkitoBio/goquery"
 	"golang.org/x/net/html"
 	"gopkg.in/resty.v1"
-	"os"
-	"strings"
 )
 
 type UrlItem struct {
@@ -22,6 +27,7 @@ type SearchResultItem struct {
 	Url           string
 	FullStarCount int
 	HalfStarCount int
+	ImgUrl        string
 }
 
 type AlfredItem struct {
@@ -60,7 +66,7 @@ func getItems(searchType string, searchString string) *[]SearchResultItem {
 		doc, _ := goquery.NewDocumentFromReader(bytes.NewReader(resp.Body()))
 		s := doc.Find("ul.search_results_subjects > li")
 		var node *goquery.Document
-		var href, originScore, title string
+		var href, originScore, title, imgUrl string
 		var fullStar, halfStar int
 		r := make([]SearchResultItem, 0)
 		for _, n := range s.Nodes {
@@ -70,6 +76,7 @@ func getItems(searchType string, searchString string) *[]SearchResultItem {
 
 			originScore = node.Find("a > div > p > span").Text()
 			title = node.Find("a > div > span").Text()
+			imgUrl, _ = node.Find("a > img").Attr("src")
 			fullStar = len(node.Find(".rating-star-small-full").Nodes)
 			halfStar = len(node.Find(".rating-star-small-half").Nodes)
 			r = append(r, SearchResultItem{
@@ -78,6 +85,7 @@ func getItems(searchType string, searchString string) *[]SearchResultItem {
 				Url:           href,
 				FullStarCount: fullStar,
 				HalfStarCount: halfStar,
+				ImgUrl:        imgUrl,
 			})
 		}
 		return &r
@@ -85,10 +93,34 @@ func getItems(searchType string, searchString string) *[]SearchResultItem {
 	return nil
 }
 
+var wg sync.WaitGroup
+
+func downloadFile(path, url string) {
+	out, _ := os.Create(path)
+	defer out.Close()
+	resp, _ := http.Get(url)
+	defer resp.Body.Close()
+	io.Copy(out, resp.Body)
+	wg.Done()
+}
+
+func getImgPath(url string) string {
+	ps := strings.Split(url, "/")
+	fn := ps[len(ps)-1]
+	return fmt.Sprintf("/tmp/%v", fn)
+}
+
 func generateResponse(items *[]SearchResultItem, searchType string) {
 	baseUrl := fmt.Sprintf("https://%s.douban.com", searchType)
 	r := make([]AlfredItem, 0)
 	for _, i := range *items {
+		wg.Add(1)
+		path := getImgPath(i.ImgUrl)
+		go downloadFile(path, i.ImgUrl)
+	}
+
+	for _, i := range *items {
+		path := getImgPath(i.ImgUrl)
 		r = append(r, AlfredItem{
 			Type:     "file",
 			Title:    i.Title,
@@ -97,7 +129,7 @@ func generateResponse(items *[]SearchResultItem, searchType string) {
 			Icon: struct {
 				Path string `json:"path"`
 			}{
-				Path: fmt.Sprintf("imgs/%s.png", searchType),
+				Path: path, //fmt.Sprintf("imgs/%s.png", searchType),
 			},
 		})
 	}
@@ -106,7 +138,10 @@ func generateResponse(items *[]SearchResultItem, searchType string) {
 	}{
 		Items: r,
 	})
+
 	fmt.Println(string(finalRes))
+
+	wg.Wait()
 }
 
 func main() {
