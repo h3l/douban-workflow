@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strings"
+
 	"github.com/PuerkitoBio/goquery"
 	"golang.org/x/net/html"
 	"gopkg.in/resty.v1"
-	"os"
-	"strings"
 )
 
 type UrlItem struct {
@@ -42,6 +43,10 @@ var urlMapping = map[string]UrlItem{
 	"movie": {
 		Url: "https://m.douban.com/search/?type=movie&query=%s",
 		Cat: "1002",
+	},
+	"music": {
+		Url: "https://m.douban.com/search/?type=music&query=%s",
+		Cat: "1003",
 	},
 }
 
