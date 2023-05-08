@@ -13,8 +13,8 @@ import (
 )
 
 type UrlItem struct {
-	Url string
-	Cat string
+	URL      string
+	Category string
 }
 
 type SearchResultItem struct {
@@ -37,16 +37,16 @@ type AlfredItem struct {
 
 var urlMapping = map[string]UrlItem{
 	"book": {
-		Url: "https://m.douban.com/search/?type=book&query=%s",
-		Cat: "1001",
+		URL:      "https://m.douban.com/search/?type=%s&query=%s",
+		Category: "1001",
 	},
 	"movie": {
-		Url: "https://m.douban.com/search/?type=movie&query=%s",
-		Cat: "1002",
+		URL:      "https://m.douban.com/search/?type=%s&query=%s",
+		Category: "1002",
 	},
 	"music": {
-		Url: "https://m.douban.com/search/?type=music&query=%s",
-		Cat: "1003",
+		URL:      "https://m.douban.com/search/?type=%s&query=%s",
+		Category: "1003",
 	},
 }
 
@@ -61,7 +61,7 @@ func getNodeAttr(node *html.Node, attrName string) string {
 
 func getItems(searchType string, searchString string) *[]SearchResultItem {
 	if v, ok := urlMapping[searchType]; ok {
-		resp, _ := resty.R().Get(fmt.Sprintf(v.Url, searchString))
+		resp, _ := resty.R().Get(fmt.Sprintf(v.URL, v.Category, searchString))
 		doc, _ := goquery.NewDocumentFromReader(bytes.NewReader(resp.Body()))
 		s := doc.Find("ul.search_results_subjects > li")
 		var node *goquery.Document
