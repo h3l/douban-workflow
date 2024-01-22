@@ -15,6 +15,7 @@ import (
 type UrlItem struct {
 	URL      string
 	Category string
+	Name     string
 }
 
 type SearchResultItem struct {
@@ -39,18 +40,22 @@ var urlMapping = map[string]UrlItem{
 	"book": {
 		URL:      "https://m.douban.com/search/?type=%s&query=%s",
 		Category: "1001",
+		Name:     "读书",
 	},
 	"movie": {
 		URL:      "https://m.douban.com/search/?type=%s&query=%s",
 		Category: "1002",
+		Name:     "电影",
 	},
 	"music": {
 		URL:      "https://m.douban.com/search/?type=%s&query=%s",
 		Category: "1003",
+		Name:     "音乐",
 	},
 	"game": {
 		URL:      "https://m.douban.com/search/?type=%s&query=%s",
 		Category: "1004",
+		Name:     "游戏",
 	},
 }
 
@@ -67,12 +72,24 @@ func getItems(searchType string, searchString string) *[]SearchResultItem {
 	if v, ok := urlMapping[searchType]; ok {
 		resp, _ := resty.R().Get(fmt.Sprintf(v.URL, v.Category, searchString))
 		doc, _ := goquery.NewDocumentFromReader(bytes.NewReader(resp.Body()))
-		s := doc.Find("ul.search_results_subjects > li")
+		// 创建一个存储与搜索相关的li元素的切片
+		var searchLis []*html.Node
+
+		// 查找所有的li.search-module元素
+		doc.Find("li.search-module").Each(func(i int, s *goquery.Selection) {
+			// 检查这个li元素下是否有span包含文本指定的搜索类型
+			if s.Find("span.search-results-modules-name").Text() == v.Name {
+				// 如果找到，就将这个li元素下的ul.search_results_subjects > li元素添加到切片中
+				s.Find("ul.search_results_subjects > li").Each(func(j int, li *goquery.Selection) {
+					searchLis = append(searchLis, li.Nodes[0])
+				})
+			}
+		})
 		var node *goquery.Document
 		var href, originScore, title string
 		var fullStar, halfStar int
 		r := make([]SearchResultItem, 0)
-		for _, n := range s.Nodes {
+		for _, n := range searchLis {
 			node = goquery.NewDocumentFromNode(n)
 			href = getNodeAttr(node.Find("a").Nodes[0], "href")
 			href = strings.ReplaceAll(href, "/"+searchType, "")
