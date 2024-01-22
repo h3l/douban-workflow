@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"strings"
 
@@ -18,12 +20,20 @@ type UrlItem struct {
 	Name     string
 }
 
+// ImageResult 用于存储图片下载的结果
+type ImageResult struct {
+	FilePath string
+	Error    error
+	Ready    chan struct{} // 用于同步的通道
+}
+
 type SearchResultItem struct {
 	Title         string
 	OriginScore   string
 	Url           string
 	FullStarCount int
 	HalfStarCount int
+	ImageResult   *ImageResult
 }
 
 type AlfredItem struct {
@@ -68,6 +78,42 @@ func getNodeAttr(node *html.Node, attrName string) string {
 	return ""
 }
 
+// downloadPNG 异步下载图片并返回 ImageResult
+func downloadPNG(url string) *ImageResult {
+	result := &ImageResult{
+		Ready: make(chan struct{}),
+	}
+	go func() {
+		defer close(result.Ready)
+
+		// 创建临时文件
+		tmpFile, err := os.CreateTemp("", "image-*.png")
+		if err != nil {
+			result.Error = err
+			return
+		}
+		defer tmpFile.Close()
+
+		// 获取图片数据
+		response, err := http.Get(url)
+		if err != nil {
+			result.Error = err
+			return
+		}
+		defer response.Body.Close()
+
+		// 将图片数据写入文件
+		_, err = io.Copy(tmpFile, response.Body)
+		if err != nil {
+			result.Error = err
+			return
+		}
+
+		result.FilePath = tmpFile.Name()
+	}()
+	return result
+}
+
 func getItems(searchType string, searchString string) *[]SearchResultItem {
 	if v, ok := urlMapping[searchType]; ok {
 		resp, _ := resty.R().Get(fmt.Sprintf(v.URL, v.Category, searchString))
@@ -94,6 +140,9 @@ func getItems(searchType string, searchString string) *[]SearchResultItem {
 			href = getNodeAttr(node.Find("a").Nodes[0], "href")
 			href = strings.ReplaceAll(href, "/"+searchType, "")
 
+			src := getNodeAttr(node.Find("a > img").Nodes[0], "src")
+			imageResult := downloadPNG(src)
+
 			originScore = node.Find("a > div > p > span").Text()
 			title = node.Find("a > div > span").Text()
 			fullStar = len(node.Find(".rating-star-small-full").Nodes)
@@ -104,6 +153,7 @@ func getItems(searchType string, searchString string) *[]SearchResultItem {
 				Url:           href,
 				FullStarCount: fullStar,
 				HalfStarCount: halfStar,
+				ImageResult:   imageResult,
 			})
 		}
 		return &r
@@ -128,6 +178,15 @@ func generateResponse(items *[]SearchResultItem, searchType string) {
 			url = i.Url
 		}
 
+		<-i.ImageResult.Ready
+
+		var imagePath string
+		if i.ImageResult.Error != nil {
+			imagePath = fmt.Sprintf("imgs/%s.png", searchType)
+		} else {
+			imagePath = i.ImageResult.FilePath
+		}
+
 		r = append(r, AlfredItem{
 			Type:     "file",
 			Title:    i.Title,
@@ -136,7 +195,7 @@ func generateResponse(items *[]SearchResultItem, searchType string) {
 			Icon: struct {
 				Path string `json:"path"`
 			}{
-				Path: fmt.Sprintf("imgs/%s.png", searchType),
+				Path: imagePath,
 			},
 		})
 	}
