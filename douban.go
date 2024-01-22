@@ -48,6 +48,10 @@ var urlMapping = map[string]UrlItem{
 		URL:      "https://m.douban.com/search/?type=%s&query=%s",
 		Category: "1003",
 	},
+	"game": {
+		URL:      "https://m.douban.com/search/?type=%s&query=%s",
+		Category: "1004",
+	},
 }
 
 func getNodeAttr(node *html.Node, attrName string) string {
@@ -91,14 +95,27 @@ func getItems(searchType string, searchString string) *[]SearchResultItem {
 }
 
 func generateResponse(items *[]SearchResultItem, searchType string) {
-	baseUrl := fmt.Sprintf("https://%s.douban.com", searchType)
+	var baseUrl string
+	if searchType == "game" {
+		baseUrl = fmt.Sprintf("https://www.douban.com/game")
+	} else {
+		baseUrl = fmt.Sprintf("https://%s.douban.com", searchType)
+	}
+
+	var url string
 	r := make([]AlfredItem, 0)
 	for _, i := range *items {
+		if searchType == "game" {
+			url = i.Url[8:]
+		} else {
+			url = i.Url
+		}
+
 		r = append(r, AlfredItem{
 			Type:     "file",
 			Title:    i.Title,
 			Subtitle: strings.Repeat("⭐", i.FullStarCount) + strings.Repeat("⚡", i.HalfStarCount) + i.OriginScore,
-			Arg:      fmt.Sprintf("%s%s", baseUrl, i.Url),
+			Arg:      fmt.Sprintf("%s%s", baseUrl, url),
 			Icon: struct {
 				Path string `json:"path"`
 			}{
