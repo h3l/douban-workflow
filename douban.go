@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
@@ -61,7 +62,7 @@ func getNodeAttr(node *html.Node, attrName string) string {
 
 func getItems(searchType string, searchString string) *[]SearchResultItem {
 	if v, ok := urlMapping[searchType]; ok {
-		resp, _ := resty.R().Get(fmt.Sprintf(v.URL, v.Category, searchString))
+		resp, _ := resty.R().Get(fmt.Sprintf(v.URL, v.Category, url.QueryEscape(searchString)))
 		doc, _ := goquery.NewDocumentFromReader(bytes.NewReader(resp.Body()))
 		s := doc.Find("ul.search_results_subjects > li")
 		var node *goquery.Document
@@ -97,7 +98,7 @@ func generateResponse(items *[]SearchResultItem, searchType string) {
 		r = append(r, AlfredItem{
 			Type:     "file",
 			Title:    i.Title,
-			Subtitle: strings.Repeat("⭐", i.FullStarCount) + strings.Repeat("⚡", i.HalfStarCount) + i.OriginScore,
+			Subtitle: strings.Repeat("⭐", i.FullStarCount) + strings.Repeat("⚡", i.HalfStarCount) + " " + i.OriginScore,
 			Arg:      fmt.Sprintf("%s%s", baseUrl, i.Url),
 			Icon: struct {
 				Path string `json:"path"`
