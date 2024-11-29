@@ -23,6 +23,7 @@ type SearchResultItem struct {
 	Url           string
 	FullStarCount int
 	HalfStarCount int
+	ErrMsg        string
 }
 
 type AlfredItem struct {
@@ -61,7 +62,10 @@ func getNodeAttr(node *html.Node, attrName string) string {
 
 func getItems(searchType string, searchString string) *[]SearchResultItem {
 	if v, ok := urlMapping[searchType]; ok {
-		resp, _ := resty.R().Get(fmt.Sprintf(v.URL, v.Category, searchString))
+		resp, err := resty.R().Get(fmt.Sprintf(v.URL, v.Category, searchString))
+		if err != nil {
+			return &[]SearchResultItem{{Title: "网络错误", ErrMsg: err.Error()}}
+		}
 		doc, _ := goquery.NewDocumentFromReader(bytes.NewReader(resp.Body()))
 		s := doc.Find("ul.search_results_subjects > li")
 		var node *goquery.Document
@@ -94,10 +98,16 @@ func generateResponse(items *[]SearchResultItem, searchType string) {
 	baseUrl := fmt.Sprintf("https://%s.douban.com", searchType)
 	r := make([]AlfredItem, 0)
 	for _, i := range *items {
+		var subTitle string
+		if i.ErrMsg != "" {
+			subTitle = i.ErrMsg
+		} else {
+			subTitle = strings.Repeat("⭐", i.FullStarCount) + strings.Repeat("⚡", i.HalfStarCount) + i.OriginScore
+		}
 		r = append(r, AlfredItem{
 			Type:     "file",
 			Title:    i.Title,
-			Subtitle: strings.Repeat("⭐", i.FullStarCount) + strings.Repeat("⚡", i.HalfStarCount) + i.OriginScore,
+			Subtitle: subTitle,
 			Arg:      fmt.Sprintf("%s%s", baseUrl, i.Url),
 			Icon: struct {
 				Path string `json:"path"`
