@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
@@ -62,7 +63,7 @@ func getNodeAttr(node *html.Node, attrName string) string {
 
 func getItems(searchType string, searchString string) *[]SearchResultItem {
 	if v, ok := urlMapping[searchType]; ok {
-		resp, err := resty.R().Get(fmt.Sprintf(v.URL, v.Category, searchString))
+		resp, err := resty.R().Get(fmt.Sprintf(v.URL, v.Category, url.QueryEscape(searchString)))
 		if err != nil {
 			return &[]SearchResultItem{{Title: "网络错误", ErrMsg: err.Error()}}
 		}
@@ -102,7 +103,7 @@ func generateResponse(items *[]SearchResultItem, searchType string) {
 		if i.ErrMsg != "" {
 			subTitle = i.ErrMsg
 		} else {
-			subTitle = strings.Repeat("⭐", i.FullStarCount) + strings.Repeat("⚡", i.HalfStarCount) + i.OriginScore
+			subTitle = strings.Repeat("⭐", i.FullStarCount) + strings.Repeat("⚡", i.HalfStarCount) + " " + i.OriginScore
 		}
 		r = append(r, AlfredItem{
 			Type:     "file",
